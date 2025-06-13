@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Image Deduplicator</title>
+    <link rel="icon" href="path/to/favicon.ico" type="image/x-icon" />
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap");
+      body {
+        font-family: "Roboto", sans-serif;
+        background: linear-gradient(135deg, #ece9e6, #ffffff);
+        margin: 0;
+        padding: 0;
+      }
+      .container {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #ffffff;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        border-radius: 15px;
+        box-sizing: border-box;
+      }
+      .header {
+        text-align: center;
+        padding: 20px 0;
+        background: #007bff;
+        color: #ffffff;
+        border-radius: 15px 15px 0 0;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 2.5rem;
+      }
+      .header p {
+        font-size: 1.2rem;
+        margin-top: 10px;
+      }
+      .file-upload {
+        margin: 30px 0;
+        text-align: center;
+      }
+      .file-upload label {
+        display: block;
+        margin-bottom: 15px;
+        font-weight: bold;
+        color: #555;
+      }
+      .file-upload input[type="file"],
+      .file-upload input[type="text"] {
+        width: calc(100% - 40px);
+        padding: 15px;
+        margin-bottom: 15px;
+        border: 1px solid #dddddd;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: box-shadow 0.3s ease;
+      }
+      .file-upload input[type="file"]:focus,
+      .file-upload input[type="text"]:focus {
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+      }
+      .file-upload button {
+        display: inline-block;
+        padding: 15px 30px;
+        border: none;
+        background-color: #007bff;
+        color: #ffffff;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 1rem;
+        transition: background-color 0.3s ease, transform 0.3s ease;
+      }
+      .file-upload button:hover {
+        background-color: #0056b3;
+        transform: translateY(-3px);
+      }
+      .result {
+        margin-top: 40px;
+      }
+      .result table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .result table,
+      .result th,
+      .result td {
+        border: 1px solid #dddddd;
+      }
+      .result th,
+      .result td {
+        padding: 15px;
+        text-align: left;
+      }
+      .result th {
+        background-color: #007bff;
+        color: #ffffff;
+        font-weight: bold;
+      }
+      .result td {
+        background-color: #f9f9f9;
+      }
+      .delete-button {
+        background-color: #dc3545;
+        color: #ffffff;
+        border: none;
+        padding: 10px 15px;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+      .delete-button:hover {
+        background-color: #c82333;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>Image Deduplicator</h1>
+        <p>Effortlessly find and remove duplicate images</p>
+      </div>
+      <div class="file-upload">
+        <form id="upload-form">
+          <label for="target_file">Select File:</label>
+          <input type="file" id="target_file" name="target_file" required />
+          <label for="directory">Directory to Scan:</label>
+          <input type="text" id="directory" name="directory" required />
+          <button type="submit">Find Duplicates</button>
+        </form>
+      </div>
+      <div class="result">
+        <table id="results-table">
+          <thead>
+            <tr>
+              <th>Target File</th>
+              <th>Comparison File</th>
+              <th>Feature Match (%)</th>
+              <th>Hash Match (%)</th>
+              <th>Similarity (%)</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <script>
+      document
+        .getElementById("upload-form")
+        .addEventListener("submit", function (event) {
+          event.preventDefault();
+          const formData = new FormData(this);
+          fetch("/deduplicate", { method: "POST", body: formData })
+            .then((response) => response.json())
+            .then((data) => {
+              const resultsTable = document
+                .getElementById("results-table")
+                .getElementsByTagName("tbody")[0];
+              resultsTable.innerHTML = "";
+              if (data.message) {
+                const row = resultsTable.insertRow();
+                const cell = row.insertCell(0);
+                cell.colSpan = 6;
+                cell.textContent = data.message;
+              } else {
+                data.forEach((result) => {
+                  const row = resultsTable.insertRow();
+                  row.insertCell(0).textContent = result.target;
+                  row.insertCell(1).textContent = result.comparison_file;
+                  row.insertCell(2).textContent = result.feature_match
+                    ? result.feature_match.toFixed(2)
+                    : "N/A";
+                  row.insertCell(3).textContent = result.hash_match
+                    ? result.hash_match.toFixed(2)
+                    : "N/A";
+                  row.insertCell(4).textContent = result.similarity.toFixed(2);
+                  const deleteButton = document.createElement("button");
+                  deleteButton.classList.add("delete-button");
+                  deleteButton.textContent = "Delete";
+                  if (result.similarity > 95) {
+                    deleteButton.onclick = function () {
+                      fetch("/delete_duplicate", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ file: result.comparison_file }),
+                      })
+                        .then((response) => response.json())
+                        .then((data) => {
+                          alert(data.message);
+                          this.closest("tr").remove();
+                        })
+                        .catch((error) => {
+                          console.error("Error:", error);
+                        });
+                    };
+                    const actionCell = row.insertCell(5);
+                    actionCell.appendChild(deleteButton);
+                  } else {
+                    const actionCell = row.insertCell(5);
+                    actionCell.textContent = "N/A";
+                  }
+                });
+              }
+            })
+            .catch((error) => {
+              console.error("Error:", error);
+            });
+        });
+    </script>
+  </body>
+</html>
